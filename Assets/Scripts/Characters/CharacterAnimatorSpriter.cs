@@ -4,7 +4,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityPlatformer;
+
+#if UP_USE_SPRITER
 using SpriterDotNetUnity;
+#endif
 
 namespace UnityPlatformer {
   #if UP_USE_SPRITER
@@ -22,10 +25,11 @@ namespace UnityPlatformer {
       base.Start();
 
       animator = behaviour.Animator;
-
+      /* display all animations
       foreach (var i in animator.GetAnimations()) {
         Debug.Log(i);
       }
+      */
     }
 
     public override void Play(string animation) {

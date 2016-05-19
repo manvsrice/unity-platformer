@@ -31,11 +31,17 @@ using System.Collections;
 
 namespace UnityPlatformer {
   /// <summary>
-  /// Handles collisions
+  /// Handle collisions
   /// </summary>
   public class PlatformerCollider2D : RaycastController {
     public float maxClimbAngle = 30;
     public float maxDescendAngle = 30;
+
+    [HideInInspector]
+    /// <summary>
+    /// Ignore the decend angle, so always decend.
+    /// <summary>
+    public bool ignoreDescendAngle = false;
 
     [HideInInspector]
     public CollisionInfo collisions;
@@ -90,6 +96,7 @@ namespace UnityPlatformer {
       // get slopeAngle, should be inside 0-90
       // consider only the maximum
       float slopeAngle = 0.0f;
+      Vector3? slopeNormal = null;
       int sloperDir = 0;
       RaycastHit2D? fhit = null;
 
@@ -101,39 +108,52 @@ namespace UnityPlatformer {
           if (a > slopeAngle) {
             fhit = hit;
             slopeAngle = a;
+            slopeNormal = hit.normal;
             sloperDir = (int)Mathf.Sign(-hit.normal.x);
           }
         }
       }
 
       rayLength = Mathf.Abs (velocity.x) + skinWidth; // TODO configurable
+      RaycastHit2D rhit = Raycast(raycastOrigins.bottomRight, Vector2.right, rayLength, collisionMask, Color.yellow);
 
-      float directionX = collisions.faceDir;
-      for (int i = 0; i < 1; i ++) {
-        Vector2 rayOrigin = (directionX == -1) ? raycastOrigins.bottomLeft : raycastOrigins.bottomRight;
-        rayOrigin += Vector2.up * (horizontalRaySpacing * i);
-        RaycastHit2D hit = Raycast(rayOrigin, Vector2.right * directionX, rayLength, collisionMask, Color.yellow);
-
-        if (hit) {
-          float a = Vector2.Angle(hit.normal, Vector2.up);
-          if (a > slopeAngle) {
-            fhit = hit;
-            slopeAngle = a;
-            sloperDir = (int)Mathf.Sign(-hit.normal.x);
-          }
+      if (rhit) {
+        float a = Vector2.Angle(rhit.normal, Vector2.up);
+        if (a > slopeAngle) {
+          fhit = rhit;
+          slopeAngle = a;
+          sloperDir = (int)Mathf.Sign(-rhit.normal.x);
         }
       }
 
-      collisions.slopeAngle = slopeAngle;
-      if (velocity.x != 0.0f) {
-        collisions.climbingSlope = sloperDir == Mathf.Sign(velocity.x);
-        collisions.descendingSlope = sloperDir != Mathf.Sign(velocity.x);
+      RaycastHit2D lhit = Raycast(raycastOrigins.bottomLeft, Vector2.left, rayLength, collisionMask, Color.yellow);
+
+      if (lhit) {
+        float a = Vector2.Angle(lhit.normal, Vector2.up);
+        if (a > slopeAngle) {
+          fhit = lhit;
+          slopeAngle = a;
+          sloperDir = (int)Mathf.Sign(-lhit.normal.x);
+        }
       }
 
-      // handle the moment we change the slope
-      // TODO REVIEW this may lead to problems when a platforms rotates.
-      if (fhit != null && collisions.slopeAngle > collisions.prevSlopeAngle) {
-        collisions.distanceToSlopeStart = fhit.Value.distance - skinWidth;
+      if (slopeAngle < 89.9f) {
+        collisions.slopeAngle = slopeAngle;
+        if (slopeNormal != null) {
+          collisions.slopeNormal = slopeNormal.Value;
+        }
+        if (velocity.x != 0.0f) {
+          collisions.climbingSlope = sloperDir == Mathf.Sign(velocity.x);
+          collisions.descendingSlope = sloperDir != Mathf.Sign(velocity.x);
+        }
+
+        // handle the moment we change the slope
+        // TODO REVIEW this may lead to problems when a platforms rotates.
+        if (fhit != null && collisions.slopeAngle > collisions.prevSlopeAngle) {
+          collisions.distanceToSlopeStart = fhit.Value.distance - skinWidth;
+        }
+      } else {
+        collisions.slopeAngle = 0.0f;
       }
     }
 
@@ -160,6 +180,7 @@ namespace UnityPlatformer {
           if (slopeAngle > maxClimbAngle) {
             collisions.left = directionX == -1;
             collisions.right = directionX == 1;
+            velocity.x = (hit.distance - skinWidth) * directionX;
           }
         }
       }
@@ -239,7 +260,9 @@ namespace UnityPlatformer {
     }
 
     void DescendSlope(ref Vector3 velocity) {
-      if (collisions.descendingSlope && collisions.slopeAngle <= maxDescendAngle) {
+      if (collisions.descendingSlope &&
+        (collisions.slopeAngle <= maxDescendAngle || ignoreDescendAngle)
+      ) {
         float moveDistance = Mathf.Abs(velocity.x);
         float descendVelocityY = Mathf.Sin (collisions.slopeAngle * Mathf.Deg2Rad) * moveDistance;
         velocity.x = Mathf.Cos (collisions.slopeAngle * Mathf.Deg2Rad) * moveDistance * Mathf.Sign (velocity.x);
@@ -269,11 +292,24 @@ namespace UnityPlatformer {
       return collisions.below || collisions.lastBelowFrame < graceFrames;
     }
 
+    public Vector3 GetDownSlopeDir() {
+      if (collisions.slopeAngle == 0){
+        return Vector3.zero;
+      }
+
+      return new Vector3(
+        Mathf.Sign(collisions.slopeNormal.x) * collisions.slopeNormal.y,
+        -Math.Abs(collisions.slopeNormal.x),
+        0
+      );
+    }
+
     public struct CollisionInfo {
       // current
       public bool above, below;
       public bool left, right;
       public float slopeAngle;
+      public Vector3 slopeNormal;
 
       // previous frame values
       public bool prevAbove, prevBelow;
