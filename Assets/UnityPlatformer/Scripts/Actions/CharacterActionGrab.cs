@@ -3,24 +3,26 @@ using UnityEngine;
 
 namespace UnityPlatformer {
   /// <summary>
-  /// Climb a ladder
-  /// TODO moveToCenterTime/Speed
+  /// Grab 'something' and freeze.
   /// </summary>
   public class CharacterActionGrab: CharacterAction {
     #region public
 
-    [Comment("max speed to snap to the center.")]
+    [Comment("Max speed to snap to the center.")]
     public float towardsSpeed = 32;
-    [Comment("time to reach the center (if towardsSpeed is fast enough).")]
+    [Comment("Time to reach the center (if towardsSpeed is fast enough).")]
     public float towardsTime = 0.1f;
     [Comment("Move character to the center of the grabArea")]
     public bool moveToCenter = false;
+    [Comment("Character offset position for centering")]
     public Vector3 grabbingOffset = new Vector3(0, 0, 0);
     public bool dismountPressingDown = true;
     public bool dismountJumping = true;
     public CharacterActionJump actionJump;
     [Comment("Jump with no direction pressed.")]
     public JumpConstantProperties jumpOff = new JumpConstantProperties(new Vector2(20, 20));
+
+    [Space(10)]
     [Comment("Remember: Higher priority wins. Modify with caution")]
     public int priority = 20;
 
@@ -29,7 +31,6 @@ namespace UnityPlatformer {
     #endregion
 
     bool centering = false;
-    Vector3 refVelocity;
     Cooldown canGrab;
 
     public override void Start() {
@@ -54,7 +55,6 @@ namespace UnityPlatformer {
       base.GainControl(delta);
 
       character.EnterState(States.Grabbing);
-      refVelocity = character.velocity;
       centering = true;
     }
 
@@ -75,10 +75,10 @@ namespace UnityPlatformer {
       // close the gap a little more
       if (centering) {
         // centering phase
-        Vector3 pos = Vector3.SmoothDamp(
+        Vector3.SmoothDamp(
           ori,
           target,
-          ref character.velocity, //ref refVelocity,
+          ref character.velocity,
           towardsTime,
           towardsSpeed, //Mathf.Infinity,
           delta);

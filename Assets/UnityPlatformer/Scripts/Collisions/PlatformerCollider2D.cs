@@ -88,7 +88,6 @@ namespace UnityPlatformer {
     public override void Start() {
       base.Start ();
       collisions = new CollisionInfo();
-      pCollisions = new CollisionInfo();
       collisions.faceDir = 1;
     }
 
@@ -105,7 +104,7 @@ namespace UnityPlatformer {
 
       UpdateRaycastOrigins ();
       // set previous collisions and reset current one
-      pCollisions = collisions;
+      pCollisions = collisions.Clone();
       collisions.Reset ();
 
       // facing need to be reviewed. We should not rely on velocity.x
@@ -220,10 +219,23 @@ namespace UnityPlatformer {
         RaycastHit2D hit = Raycast(rayOrigin, Vector2.right * directionX, rayLength, collisionMask, Color.red);
 
         if (hit && hit.distance != 0) {
-          // ignore oneWayPlatforms, aren't walls
-          if (Configuration.IsOneWayPlatform(hit.collider)) {
+          // ignore oneWayPlatformsUp/Down, aren't walls
+          if (Configuration.IsOneWayPlatformUp(hit.collider) || Configuration.IsOneWayPlatformDown(hit.collider)) {
             continue;
           }
+
+          if ((
+            // ignore left wall while moving left
+            Configuration.IsOneWayWallLeft(hit.collider) &&
+            velocity.x < 0
+            ) || (
+            // ignore right wall while moving right
+            Configuration.IsOneWayWallRight(hit.collider) &&
+            velocity.x > 0
+          )) {
+            continue;
+          }
+
 
           if (directionX == -1) {
             collisions.PushLeftCollider(hit);
@@ -285,11 +297,20 @@ namespace UnityPlatformer {
             continue;
           }
 
-          // ignore oneWayPlatforms when not falling
-          if (
-            Configuration.IsOneWayPlatform(hit.collider) &&
+          // left/right wall are ignored for vertical collisions
+          if (Configuration.IsOneWayWallLeft(hit.collider) || Configuration.IsOneWayWallRight(hit.collider)) {
+            continue;
+          }
+
+          if ((
+            // ignore up platforms while moving up
+            Configuration.IsOneWayPlatformUp(hit.collider) &&
             velocity.y > 0
-          ) {
+            ) || (
+            // ignore down platforms while moving down
+            Configuration.IsOneWayPlatformDown(hit.collider) &&
+            velocity.y < 0
+          )) {
             continue;
           }
 
@@ -432,6 +453,7 @@ namespace UnityPlatformer {
       }
     }
 
+    //[Serializable]
     public class CollisionInfo {
       // current
       public bool above, below;
@@ -469,6 +491,10 @@ namespace UnityPlatformer {
           leftHits[i] = new RaycastHit2D();
           rightHits[i] = new RaycastHit2D();
         }
+      }
+
+      public CollisionInfo Clone() {
+        return (CollisionInfo) MemberwiseClone();
       }
 
       public void Reset() {

@@ -4,16 +4,21 @@ using UnityEngine;
 
 namespace UnityPlatformer {
   /// <summary>
-  /// Climb a ladder
-  /// TODO moveToCenterTime/Speed
+  /// Push objects (Box)
+  /// NOTE require CharacterActionGroundMovement
   /// </summary>
   public class CharacterActionPush: CharacterAction {
     #region public
 
-    public float speed = 4;
+    [Comment("Movement speed")]
+    public float speed = 3;
+    [Comment("Time to reach max speed")]
+    public float accelerationTime = .1f;
+    [Comment("Time to pushing before start moving the object")]
     public float pushingStartTime = 0.5f;
     //public float maxWeight =4f;
 
+    [Space(10)]
     [Comment("Remember: Higher priority wins. Modify with caution")]
     public int priority = 20;
 
@@ -22,9 +27,14 @@ namespace UnityPlatformer {
     int faceDir = 0;
     Cooldown pushingCD;
 
+    float velocityXSmoothing;
+    CharacterActionGroundMovement groundMovement;
+
     public override void Start() {
       base.Start();
       pushingCD = new Cooldown(pushingStartTime);
+      groundMovement = character.GetAction<CharacterActionGroundMovement>();
+      Debug.Log("groundMovement" + groundMovement);
 
       character.onBeforeMove += OnBeforeMove;
     }
@@ -65,7 +75,7 @@ namespace UnityPlatformer {
         Box b = hits[i].collider.gameObject.GetComponent<Box>();
         if (b != null) {
           // guard against dark arts
-          if (Configuration.IsBox(b.collider.gameObject)) {
+          if (Configuration.IsBox(b.boxCharacter.gameObject)) {
             return true;
           }
         }
@@ -101,6 +111,7 @@ namespace UnityPlatformer {
     }
 
     public override void PerformAction(float delta) {
+      groundMovement.Move(speed, ref velocityXSmoothing, accelerationTime);
     }
 
     public void OnBeforeMove(Character ch, float delta) {
@@ -114,15 +125,26 @@ namespace UnityPlatformer {
     }
 
     public void PushBox(Vector3 velocity, ref RaycastHit2D[] hits, int count) {
-      Debug.Log(velocity.ToString("F4"));
+      // push any box that is not on a platform that it's already a box
+      // and just one (the first one)
 
       for (int i = 0; i < count; ++i) {
         Box b = hits[i].collider.gameObject.GetComponent<Box>();
         if (b != null) {
           // guard against dark arts
-          if (Configuration.IsBox(b.collider.gameObject)) {
-            b.collider.Move(velocity);
-            return;
+          if (Configuration.IsBox(b.boxCharacter.gameObject)) {
+            if (!b.boxCharacter.platform) {
+              b.boxCharacter.pc2d.Move(velocity);
+              return;
+            }
+
+            Box b2 = b.boxCharacter.platform.GetComponent<Box>();
+            if (b2 != null && !Configuration.IsBox(b2.boxCharacter.gameObject)) {
+              b.boxCharacter.pc2d.Move(velocity);
+              return;
+            }
+          } else {
+            Debug.LogWarning("Found an Character that should be a box", b.boxCharacter.gameObject);
           }
         }
       }

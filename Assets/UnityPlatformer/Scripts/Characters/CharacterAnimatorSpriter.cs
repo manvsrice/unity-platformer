@@ -1,4 +1,4 @@
-#define UP_USE_SPRITER
+//#define UP_USE_SPRITER
 
 using System;
 using System.Collections.Generic;
@@ -36,6 +36,12 @@ namespace UnityPlatformer {
         if (animator.Name != animation) {
         animator.Play(animation);
       }
+    }
+
+    public override float GetAnimationLength(string animation) {
+      // TODO
+
+      return 0.0f;
     }
   }
   #endif

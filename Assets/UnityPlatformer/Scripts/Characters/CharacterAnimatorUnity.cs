@@ -1,17 +1,9 @@
-#define UP_USE_SPRITER
-
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityPlatformer;
 
-#if UP_USE_SPRITER
-using SpriterDotNetUnity;
-#endif
-
 namespace UnityPlatformer {
-  #if UP_USE_SPRITER
-
   public class CharacterAnimatorUnity: CharacterAnimator {
     public Animator animator;
 
@@ -30,6 +22,17 @@ namespace UnityPlatformer {
       playing = animation;
       animator.Play(animation);
     }
+
+    public override float GetAnimationLength(string animation) {
+      RuntimeAnimatorController ac = animator.runtimeAnimatorController;
+      for(int i = 0; i<ac.animationClips.Length; i++) {
+        if(ac.animationClips[i].name == animation) {
+          return ac.animationClips[i].length;
+        }
+      }
+
+      return 0.0f;
+    }
+
   }
-  #endif
 }

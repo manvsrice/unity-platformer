@@ -4,7 +4,6 @@ using UnityEngine;
 namespace UnityPlatformer {
   /// <summary>
   /// Movement while on ground and not slipping
-  /// TODO slopeAccelerationFactor/slopeDeccelerationFactor
   /// </summary>
   public class CharacterActionGroundMovement: CharacterAction {
     #region public
@@ -24,7 +23,9 @@ namespace UnityPlatformer {
     public override int WantsToUpdate(float delta) {
       // NOTE if Air/Ground are very different maybe:
       // if (pc2d.IsOnGround(<frames>)) it's better
-      if (pc2d.collisions.below && !character.IsOnState(States.Slipping)) {
+      if (pc2d.collisions.below &&
+        !character.IsOnState(States.Slipping) &&
+        !character.IsOnState(States.Pushing)) {
         return -1;
       }
       return 0;
@@ -40,18 +41,23 @@ namespace UnityPlatformer {
 
 
     /// <summary>
-    /// Horizontal movement
+    /// Do horizontal movement
     /// </summary>
     public override void PerformAction(float delta) {
-      Vector2 in2d = input.GetAxisRaw();
+      Move(speed, ref velocityXSmoothing, accelerationTime);
+    }
 
-      float targetVelocityX = in2d.x * speed;
+    /// <summary>
+    /// Horizontal movement based on current input
+    /// </summary>
+    public void Move(float spdy, ref float smoothing, float accTime) {
+      float targetVelocityX = input.GetAxisRawX() * spdy;
 
       character.velocity.x = Mathf.SmoothDamp (
         character.velocity.x,
         targetVelocityX,
         ref velocityXSmoothing,
-        accelerationTime
+        accTime
       );
     }
 

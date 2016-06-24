@@ -38,6 +38,10 @@ namespace UnityPlatformer {
         "Attack",
         "Attack",
         "Fire2"
+      ), new InputMap (
+        "Use",
+        "Use",
+        "Fire1"
       )
     };
 
@@ -49,7 +53,6 @@ namespace UnityPlatformer {
             return CnInputManager.GetButton(i.handheld);
           }
           #endif
-
           return Input.GetButton(i.keyboard);
         }
       }
